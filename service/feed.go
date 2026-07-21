@@ -52,60 +52,64 @@ func (s *FeedService) GetFeed(userID uint, page, size int) ([]model.Post, int64,
 
 }
 
-//辅助：根据ID列表查帖子
-func (s *FeedService) getPostByIDs (ctx context.Context,idStrs []string) ([]model.Post,error){
+// 辅助：根据ID列表查帖子
+func (s *FeedService) getPostByIDs(ctx context.Context, idStrs []string) ([]model.Post, error) {
 	var ids []uint
-	for _,s := range idStrs{
+	for _, s := range idStrs {
 		var id uint
-		fmt.Sscanf(s,"%d",&id)
+		fmt.Sscanf(s, "%d", &id)
 		ids = append(ids, id)
 	}
 
 	var posts []model.Post
-	if err := db.DB.Where("id IN ?",ids).Preload("User").Find(&posts).Error; err != nil{
-		return nil,err
+	if err := db.DB.Where("id IN ?", ids).Preload("User").Find(&posts).Error; err != nil {
+		return nil, err
 	}
 
 	//按缓存顺序排序
 	postMap := make(map[uint]model.Post)
-	for _,p :=range postMap{
-		postMap[p.ID]=p
+	for _, p := range posts {
+		postMap[p.ID] = p
 	}
-	ordered :=make([]model.Post,0,len(ids))
-	for _,id := range ids{
-		if _,ok := postMap[id]{
-			ordered =append(ordered, p)
-		} 
+	ordered := make([]model.Post, 0, len(ids))
+	for _, id := range ids {
+		if p, ok := postMap[id]; ok {
+			ordered = append(ordered, p)
+		}
 	}
-	return ordered,nil
+	return ordered, nil
 }
 
-//从缓存中获取feed
-func (s *FeedService) GetFeedWithCache (ctx context.Context,userID uint,page,size int) ([]model.Post,int64,error){
-	cacheKey := fmt.Sprintf("feed:%d",userID) 
-	countKey := fmt.Sprintf("feed:count:%d",userID)
+// 从缓存中获取feed
+func (s *FeedService) GetFeedWithCache(ctx context.Context, userID uint, page, size int) ([]model.Post, int64, error) {
+	cacheKey := fmt.Sprintf("feed:%d", userID)
+	countKey := fmt.Sprintf("feed:count:%d", userID)
 	//尝试从Redis取
-	total,err := redis.RDB.Get(ctx,countKey).Int64()
+	total, err := redis.RDB.Get(ctx, countKey).Int64()
 	if err == nil {
-		postIDs,err := redis.RDB.LRange(ctx,cacheKey,int64((page-1)*size),int64(page*size-1)).Result()
-		if err == nil && len(postIDs) > 0{
-			return s.getPostByIDs(postIDs),total,nil
+		postIDs, err := redis.RDB.LRange(ctx, cacheKey, int64((page-1)*size), int64(page*size-1)).Result()
+		if err == nil && len(postIDs) > 0 {
+			posts, err := s.getPostByIDs(ctx, postIDs)
+			if err != nil {
+				return nil, 0, err
+			}
+			return posts, total, nil
 		}
 	}
 
 	//缓存未命中，从mysql中查询
-	posts,totalFromDB,err := s.GetFeed(userID,page,size)
-	if err != nil{
-		return nil,0,err
+	posts, totalFromDB, err := s.GetFeed(userID, page, size)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	//缓存未命中时异步写入缓存
-	go func(){
-		for i :=0 ; i<100 && i<len(posts) ; i++ {
-			redis.RDB.RPush(ctx,cacheKey,posts[i].ID)
-		} 
-		redis.RDB.Expire(ctx,cacheKey,5*time.Minute)
-		redis.RDB.Set(ctx,countKey,totalFromDB,1*time.Hour)
+	go func() {
+		for i := 0; i < 100 && i < len(posts); i++ {
+			redis.RDB.RPush(ctx, cacheKey, posts[i].ID)
+		}
+		redis.RDB.Expire(ctx, cacheKey, 5*time.Minute)
+		redis.RDB.Set(ctx, countKey, totalFromDB, 1*time.Hour)
 	}()
-	return posts,totalFromDB,nil
+	return posts, totalFromDB, nil
 }

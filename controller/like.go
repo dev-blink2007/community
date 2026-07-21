@@ -27,7 +27,7 @@ func (lc *LikeController) ToggleLike(c *gin.Context) {
 		return
 	}
 
-	liked, err := lc.likeService.ToggleLike(userID, uint(postID))
+	liked, err := lc.likeService.ToggleLike(c.Request.Context(), userID, uint(postID))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子ID"})
 		return
@@ -75,7 +75,7 @@ func (lc *LikeController) GetLikeCount(c *gin.Context) {
 		return
 	}
 
-	count, err := lc.likeService.GetLikeCountWithCache(uint(postID))
+	count, err := lc.likeService.GetLikeCountWithCache(c.Request.Context(), uint(postID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return
