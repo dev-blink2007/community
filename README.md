@@ -1,5 +1,5 @@
 # CommunityHub - 社区后端服务系统
-> 一个基于Go + Gin + GORM + MySQL + Redis 的内容社区后端系统，支持用户认证，帖子管理，评论互动，点赞，关注和Feed流，并集成了Redis缓存优化
+> 一个基于Go + Gin + GORM + MySQL + Redis 的内容社区后端系统，支持用户登陆（使用bycrpt生成盐值加密密码）和认证（jwt，token有效市场为24小时），帖子管理，评论互动，点赞，关注和Feed流，并集成了Redis缓存优化（互斥锁防击穿），兼具热榜并且定时刷新，
 
 ## 项目亮点
 - **高并发点赞** : 使用Redis实现点赞技术，并定时同步到mysql
@@ -19,16 +19,19 @@
 
 ## 项目结构
 community/
-|———— config/# 配置管理
-|———— service/# 业务逻辑
-|———— model/# 数据模型
-|———— controller/# 控制器层（请求管理）
-|———— db /# 数据库连接
-|———— redis /# Redis连接
-|———— utils /# 工具函数
-|———— middleware /# 中间件（jwt，加密密码）
-|———— .env /# 环境变量配置
-|———— main.go /#程序入口
+├── config/
+├── controller/
+├── db/
+├── middleware/
+│   └── auth.go
+├── model/
+├── redis/
+├── service/
+├── utils/
+├── bench/
+│   └── bench.go
+├── main.go
+└── go.mod
 
 ## 快速启动
 ### 1.克隆项目
@@ -85,4 +88,4 @@ go run main.go
 |------|-----|----------|------|
 | `GET /api/posts` | 271 | 3.7ms | 列表查询，代表读接口性能基准 |
 
-> 其他接口（如详情、点赞）暂未压测，预期性能与此相近或略低
+> 其他接口（如详情、点赞）预期性能与此相近或略低
