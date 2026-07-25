@@ -116,8 +116,8 @@ func (s *LikeService) SyncLikeCountToMySQL(ctx context.Context) error {
 		for i, key := range keys {
 			cmds[i] = myredis.RDB.Get(ctx, key)
 		}
-		if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) { //redis.Ni是key不存在的一个特殊错误，不存在的key跳过就行了
-			return nil
+		if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) { //redis.Nil是key不存在的一个特殊错误，不存在的key跳过就行了
+			return err
 		}
 
 		//解析keys里面的post_id
