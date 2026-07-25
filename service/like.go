@@ -103,40 +103,41 @@ func (s *LikeService) SyncLikeCountToMySQL(ctx context.Context) error {
 		if cursor == 0 {
 			break
 		}
-		if len(keys) == 0 {
-			log.Println("没有需要同步的点赞数")
-			return nil
-		}
-
-		log.Printf("找到%d个需要同步的点赞数", len(keys))
-
-		//批量获取Redis里面的值
-		pipe := myredis.RDB.Pipeline()
-		cmds := make([]*redis.StringCmd, len(keys)) //redis.StringCmd:一个结构体，里面存了 GET 命令的返回值和错误信息;*redis.StringCmd:指向这个结构体的指针，避免复制数据
-		for i, key := range keys {
-			cmds[i] = myredis.RDB.Get(ctx, key)
-		}
-		if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) { //redis.Nil是key不存在的一个特殊错误，不存在的key跳过就行了
-			return err
-		}
-
-		//解析keys里面的post_id
-		for i, key := range keys {
-			var postID uint
-			fmt.Sscanf(key, "like:count:%d", postID)
-			val, err := cmds[i].Int64()
-			if err != nil {
-				log.Printf("获取key %s 失败：%v", key, err)
-				continue
-			}
-
-			//更新mysql
-			if err := db.DB.Model(&model.Post{}).Where("id = ?", postID).Update("like_count", val).Error; err != nil {
-				log.Printf("更新帖子 %d 失败: %v", postID, err)
-				continue
-			}
-			log.Printf("同步成功：帖子 %d 点赞数 %d", postID, val)
-		}
 	}
+	if len(keys) == 0 {
+		log.Println("没有需要同步的点赞数")
+		return nil
+	}
+
+	log.Printf("找到%d个需要同步的点赞数", len(keys))
+
+	//批量获取Redis里面的值
+	pipe := myredis.RDB.Pipeline()
+	cmds := make([]*redis.StringCmd, len(keys)) //redis.StringCmd:一个结构体，里面存了 GET 命令的返回值和错误信息;*redis.StringCmd:指向这个结构体的指针，避免复制数据
+	for i, key := range keys {
+		cmds[i] = pipe.Get(ctx, key)
+	}
+	if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) { //redis.Nil是key不存在的一个特殊错误，不存在的key跳过就行了
+		return err
+	}
+
+	//解析keys里面的post_id
+	for i, key := range keys {
+		var postID uint
+		fmt.Sscanf(key, "like:count:%d", postID)
+		val, err := cmds[i].Int64()
+		if err != nil {
+			log.Printf("获取key %s 失败：%v", key, err)
+			continue
+		}
+
+		//更新mysql
+		if err := db.DB.Model(&model.Post{}).Where("id = ?", postID).Update("like_count", val).Error; err != nil {
+			log.Printf("更新帖子 %d 失败: %v", postID, err)
+			continue
+		}
+		log.Printf("同步成功：帖子 %d 点赞数 %d", postID, val)
+	}
+
 	return nil
 }
