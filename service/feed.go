@@ -80,36 +80,67 @@ func (s *FeedService) getPostByIDs(ctx context.Context, idStrs []string) ([]mode
 	return ordered, nil
 }
 
-// 从缓存中获取feed
+const (
+	HotCachePages = 10
+	MaxCacheItems = 500
+)
+
 func (s *FeedService) GetFeedWithCache(ctx context.Context, userID uint, page, size int) ([]model.Post, int64, error) {
-	cacheKey := fmt.Sprintf("feed:%d", userID)
-	countKey := fmt.Sprintf("feed:count:%d", userID)
-	//尝试从Redis取
-	total, err := redis.RDB.Get(ctx, countKey).Int64()
-	if err == nil {
-		postIDs, err := redis.RDB.LRange(ctx, cacheKey, int64((page-1)*size), int64(page*size-1)).Result()
-		if err == nil && len(postIDs) > 0 {
-			posts, err := s.getPostByIDs(ctx, postIDs)
-			if err != nil {
-				return nil, 0, err
-			}
-			return posts, total, nil
+	cachekey := fmt.Sprintf("feed:%d", userID)
+	countkey := fmt.Sprintf("feed:count:%d", userID)
+	if page > HotCachePages {
+		posts, total, err := s.GetFeed(userID, page, size)
+		if err != nil {
+			return nil, 0, err
 		}
+		return posts, total, nil
 	}
 
-	//缓存未命中，从mysql中查询
-	posts, totalFromDB, err := s.GetFeed(userID, page, size)
+	pipe := redis.RDB.Pipeline()
+	start := int64((page - 1) * size)
+	end := int64(page*size - 1)
+	idcmd := pipe.LRange(ctx, cachekey, start, end)
+	totalcmd := pipe.Get(ctx, countkey)
+	pipe.Exec(ctx)
+
+	postIDs, err1 := idcmd.Result()
+	total, err2 := totalcmd.Int64()
+	if err1 == nil && err2 == nil && len(postIDs) > 0 {
+		posts, err := s.getPostByIDs(ctx, postIDs)
+		if err != nil {
+			return nil, 0, err
+		}
+		return posts, total, nil
+	}
+
+	posts, count, err := s.GetFeed(userID, page, size)
 	if err != nil {
 		return nil, 0, err
 	}
+	go s.buildHotCache(context.Background(), userID, size)
+	return posts, count, nil
 
-	//缓存未命中时异步写入缓存
-	go func() {
-		for i := 0; i < 100 && i < len(posts); i++ {
-			redis.RDB.RPush(ctx, cacheKey, posts[i].ID)
-		}
-		redis.RDB.Expire(ctx, cacheKey, 5*time.Minute)
-		redis.RDB.Set(ctx, countKey, totalFromDB, 1*time.Hour)
-	}()
-	return posts, totalFromDB, nil
+}
+
+func (s *FeedService) buildHotCache(ctx context.Context, userID uint, size int) {
+	cachekey := fmt.Sprintf("feed:%d", userID)
+	countkey := fmt.Sprintf("feed:count:%d", userID)
+
+	cachelimit := HotCachePages * size
+	if cachelimit > MaxCacheItems {
+		cachelimit = MaxCacheItems
+	}
+
+	posts, total, err := s.GetFeed(userID, 1, cachelimit)
+	if err != nil || len(posts) == 0 {
+		return
+	}
+	pipe := redis.RDB.Pipeline()
+	pipe.Del(ctx, cachekey)
+	for _, post := range posts {
+		pipe.RPush(ctx, cachekey, post.ID)
+	}
+	pipe.Expire(ctx, cachekey, 5*time.Minute)
+	pipe.Set(ctx, countkey, total, 1*time.Hour)
+	pipe.Exec(ctx)
 }
