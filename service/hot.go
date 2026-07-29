@@ -39,6 +39,7 @@ func (s *HotService) RefreshHot(ctx context.Context) error { //context用来管�
 	}
 	log.Printf("查到 %d 篇帖子", len(posts))
 	pipe := myredis.RDB.Pipeline() //将代码打包进管道，管道里的代码统一传输，减少I/O
+	pipe.Del(ctx, hotKey)
 	for _, post := range posts {
 		//获取点赞数
 		var likeCount int64
