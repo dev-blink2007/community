@@ -2,8 +2,12 @@ package controller
 
 import (
 	"community/service"
+	"fmt"
 	"net/http"
 	"strconv"
+
+	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -85,5 +89,38 @@ func (pc *PostController) GetPostDetail(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"data": post,
+	})
+}
+
+// GetAISummary AI生成帖子摘要
+func (pc *PostController) GetAISummary(c *gin.Context) {
+	//获取帖子ID
+	idstr := c.Param("post_id")
+	id, err := strconv.Atoi(idstr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子ID"})
+		return
+	}
+	post, err := pc.postService.GetPostByIDWithLock(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	prompt := fmt.Sprintf("标题：%s 内容： %s", post.Title, post.Content)
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	timeout, _ := time.ParseDuration("30s")
+	ctx, cancel = context.WithTimeout(c.Request.Context(), timeout)
+	defer cancel()
+	content, token, err := service.CallDeepSeekAPI(ctx, prompt)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"content": content,
+		"token":   token,
 	})
 }

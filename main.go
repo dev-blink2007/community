@@ -9,15 +9,23 @@ import (
 	"community/service"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	config.LoadConfig() //加载配置
+	f, err := os.OpenFile("app.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644) //创建一个日志文件，os.O_CREATE 如果文件不存在，就创建它，os.O_WRONLY 以“只写”模式打开（不能读），os.O_APPEND 写入时追加到文件末尾，不覆盖已有内容，0644 文件权限（Linux 里：所有者可读写，其他人只读）
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	log.SetOutput(io.MultiWriter(os.Stdout, f)) //把日志打印到终端和日志文件
+	config.LoadConfig()                         //加载配置
 
 	fmt.Println("config.Cfg 是否为 nil:", config.Cfg == nil)
 	if config.Cfg != nil {
@@ -67,6 +75,7 @@ func main() {
 		authorized.POST("/users/:user_id/follow", followController.ToggleFollow)
 		authorized.GET("/feed", feedController.GetFeed)
 		authorized.GET("/admin/refresh-hot", hotController.RefreshHot)
+		authorized.GET("/posts/:post_id/ai-summary", postController.GetAISummary) //用ai生成帖子摘要的接口要登陆是因为消耗token要花钱，避免被人随意嚯嚯
 		authorized.GET("/test", func(c *gin.Context) {
 			userID, _ := c.Get("user_id")
 			c.JSON(http.StatusOK, gin.H{
