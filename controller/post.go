@@ -114,7 +114,7 @@ func (pc *PostController) GetAISummary(c *gin.Context) {
 	timeout, _ := time.ParseDuration("30s")
 	ctx, cancel = context.WithTimeout(c.Request.Context(), timeout)
 	defer cancel()
-	content, token, err := service.CallDeepSeekAPI(ctx, prompt)
+	content, token, err := service.CallDeepSeekAPI(ctx, prompt, uint(id))
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return

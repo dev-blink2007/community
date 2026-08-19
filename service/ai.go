@@ -3,10 +3,12 @@ package service
 import (
 	"bytes"
 	"community/config"
+	"community/redis"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -38,7 +40,18 @@ type deepseekResponse struct {
 }
 
 // 调用API，返回ai的回复和token消耗
-func CallDeepSeekAPI(ctx context.Context, prompt string) (string, int, error) {
+func CallDeepSeekAPI(ctx context.Context, prompt string, postid uint) (string, int, error) {
+	summarykey := fmt.Sprintf("ai:summary:%d", postid)
+	tokenkey := fmt.Sprintf("ai:summary:token:%d", postid)
+	pipe := redis.RDB.Pipeline()
+	contentcmd := pipe.Get(ctx, summarykey)
+	tokencmd := pipe.Get(ctx, tokenkey)
+	pipe.Exec(ctx)
+	content, err1 := contentcmd.Result()
+	token, err2 := tokencmd.Int()
+	if err1 == nil && err2 == nil {
+		return content, token, nil
+	}
 	//构造请求体
 	reqBody := deepseekRequest{
 		Model: "deepseek-chat",
@@ -85,7 +98,12 @@ func CallDeepSeekAPI(ctx context.Context, prompt string) (string, int, error) {
 	if len(aiResp.Choices) == 0 {
 		return "", 0, fmt.Errorf("ai 返回为空")
 	}
-	content := aiResp.Choices[0].Message.Content
-	token := aiResp.Usage.TotalTokens
+	content = aiResp.Choices[0].Message.Content
+	token = aiResp.Usage.TotalTokens
+	err1 = redis.RDB.Set(ctx, summarykey, content, 24*time.Hour).Err()
+	err2 = redis.RDB.Set(ctx, tokenkey, token, 24*time.Hour).Err()
+	if err1 != nil || err2 != nil {
+		log.Printf("帖子 %d ai结果缓存失败", postid)
+	}
 	return content, token, nil
 }
