@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"community/config"
+	"community/internal/config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"

@@ -1,9 +1,9 @@
 package service
 
 import (
-	"community/db"
-	"community/model"
-	myredis "community/redis"
+	"community/internal/db"
+	"community/internal/model"
+	myredis "community/internal/redis"
 	"context"
 	"fmt"
 	"log"

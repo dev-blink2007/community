@@ -1,12 +1,12 @@
 package main
 
 import (
-	"community/config"
-	"community/controller"
-	"community/db"
-	"community/middleware"
-	"community/redis"
-	"community/service"
+	"community/internal/config"
+	"community/internal/controller"
+	"community/internal/db"
+	"community/internal/middleware"
+	"community/internal/redis"
+	"community/internal/service"
 	"context"
 	"fmt"
 	"io"
@@ -25,12 +25,8 @@ func main() {
 	}
 	defer f.Close()
 	log.SetOutput(io.MultiWriter(os.Stdout, f)) //把日志打印到终端和日志文件
-	config.LoadConfig()                         //加载配置
+	config.LoadConfig() //加载配置
 
-	fmt.Println("config.Cfg 是否为 nil:", config.Cfg == nil)
-	if config.Cfg != nil {
-		fmt.Println("JWT_SECRET 值:", config.Cfg.JWTSecret)
-	}
 	//连接数据库
 	if err := db.InitDB(); err != nil {
 		log.Fatal("数据库初始化失败:", err)

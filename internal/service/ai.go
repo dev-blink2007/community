@@ -2,8 +2,8 @@ package service
 
 import (
 	"bytes"
-	"community/config"
-	"community/redis"
+	"community/internal/config"
+	"community/internal/redis"
 	"context"
 	"encoding/json"
 	"fmt"

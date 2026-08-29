@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-redis/redis/v8" //go-redis对Redis的作用类似于GORM对sql的作用
 
-	"community/config"
+	"community/internal/config"
 )
 
 var RDB *redis.Client          //redis.Client是go-redis内置的一个结构体

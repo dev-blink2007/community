@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"community/service"
+	"community/internal/service"
 	"net/http"
 	"strconv"
 

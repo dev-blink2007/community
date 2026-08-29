@@ -8,8 +8,8 @@ import (
 	"gorm.io/gorm"         //将结构体翻译成数据库表，并将db.Create(&user)这样的操作翻译成数据库语言
 	"gorm.io/gorm/logger"  //将sql的操作翻译成日志语言
 
-	"community/config"
-	"community/model"
+	"community/internal/config"
+	"community/internal/model"
 )
 
 var DB *gorm.DB //DB是GORM里面写好的一个结构体

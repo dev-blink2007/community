@@ -1,8 +1,8 @@
 package service
 
 import (
-	"community/db"
-	"community/model"
+	"community/internal/db"
+	"community/internal/model"
 	"errors"
 
 	"gorm.io/gorm"

@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"community/service"
-	"community/utils"
+	"community/internal/service"
+	"community/internal/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

@@ -2,4 +2,4 @@
 *.exe
 *.log
 .DS_Store
-bench/bench
+cmd/bench/bench

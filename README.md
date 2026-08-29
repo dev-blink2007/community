@@ -19,27 +19,26 @@
 
 ## 项目结构
 community/
-├── config/config.go           # 配置加载（环境变量）
-├── controller/                # 控制器层（处理 HTTP 请求）
-│   ├── user.go
-│   ├── post.go
-│   ├── comment.go
-│   ├── like.go
-│   ├── follow.go
-│   ├── feed.go
-│   └── hot.go
-├── db/
-│   ├── db.go               # MySQL 连接与初始化 + GORM自动建表
-├── middleware/
-│   └── auth.go                # JWT 认证中间件
-├── model/                     # 数据模型定义
-├── redis/
-│   └── redis.go               # Redis 连接与初始化
-├── service/                   # 业务逻辑层
-├── utils/                     # 工具函数
-├── bench/
-│   └── bench.go               # 自研并发压测脚本
-├── main.go                    # 入口 + 路由注册 + 定时任务
+├── cmd/                          # 可执行程序入口
+│   ├── server/main.go            # 服务入口 + 路由注册 + 定时任务
+│   └── bench/bench.go            # 自研并发压测脚本
+├── internal/                     # 应用内部代码（不对外暴露）
+│   ├── config/config.go          # 配置加载（环境变量）
+│   ├── controller/               # 控制器层（处理 HTTP 请求）
+│   │   ├── user.go
+│   │   ├── post.go
+│   │   ├── comment.go
+│   │   ├── like.go
+│   │   ├── follow.go
+│   │   ├── feed.go
+│   │   └── hot.go
+│   ├── db/db.go                  # MySQL 连接与初始化 + GORM自动建表
+│   ├── middleware/auth.go        # JWT 认证中间件
+│   ├── model/                    # 数据模型定义
+│   ├── redis/redis.go            # Redis 连接与初始化
+│   ├── service/                  # 业务逻辑层
+│   └── utils/                    # 工具函数
+├── .env.example
 └── go.mod
 
 ## 快速启动
@@ -64,7 +63,7 @@ CREATE DATABASE community;
 
 ### 5.运行项目
 \`\`\`bash
-go run main.go
+go run ./cmd/server
 \`\`\`
 
 服务器启动在 `http://localhost:8080`
@@ -98,7 +97,7 @@ go run main.go
 |------|-----|----------|------|
 | `GET /api/posts` | 271 | 3.7ms | 列表查询（带缓存），代表读接口性能基准 |
 
-> 压测脚本位于 `bench/bench.go`，可扩展测试更多接口
+> 压测脚本位于 `cmd/bench/bench.go`，可扩展测试更多接口
 
 ## 线上地址
 http://8.137.190.152/api/posts

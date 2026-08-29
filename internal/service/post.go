@@ -1,9 +1,9 @@
 package service
 
 import (
-	"community/db"
-	"community/model"
-	"community/redis"
+	"community/internal/db"
+	"community/internal/model"
+	"community/internal/redis"
 	"context"
 	"encoding/json"
 	"errors"
