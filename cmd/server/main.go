@@ -26,6 +26,12 @@ func main() {
 	defer f.Close()
 	log.SetOutput(io.MultiWriter(os.Stdout, f)) //把日志打印到终端和日志文件
 	config.LoadConfig()                         //加载配置
+	poolLogFile, err := os.OpenFile("db-pool.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer poolLogFile.Close()
+	poolLogger := log.New(io.MultiWriter(os.Stdout, poolLogFile), "[db-pool] ", log.LstdFlags)
 
 	//连接数据库
 	if err := db.InitDB(); err != nil {
@@ -38,13 +44,25 @@ func main() {
 	go func() {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-		for range ticker.C {
+		printStatus := func() {
 			stats, err := db.Status()
 			if err != nil {
-				log.Println("查询数据库连接池状态失败:", err)
-				continue
+				poolLogger.Println("查询连接池状态失败:", err)
+				return
 			}
-			log.Printf("数据库连接池状态: %+v", stats)
+			poolLogger.Printf("open=%d in_use=%d idle=%d wait_count=%d wait_duration=%s idle_closed=%d lifetime_closed=%d",
+				stats.OpenConnections,
+				stats.InUse,
+				stats.Idle,
+				stats.WaitCount,
+				stats.WaitDuration,
+				stats.MaxIdleClosed,
+				stats.MaxLifetimeClosed,
+			)
+		}
+		printStatus()
+		for range ticker.C {
+			printStatus()
 		}
 	}()
 

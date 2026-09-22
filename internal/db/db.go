@@ -36,7 +36,7 @@ func InitDB() error {
 	// loc=Local	       参数3	       使用本地时区
 	var err error
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{ //gorm.Open(...) GORM 的入口函数 创建数据库连接对象gorm.Open 的第一个参数是 Dialector 接口，mysql.Open(dsn) 返回的就是这个接口 解耦。GORM 核心不依赖具体的数据库实现。你想换成 PostgreSQL，只需要把 mysql.Open(dsn) 换成 postgres.Open(dsn)，其他地方完全不用改。这叫面向接口编程 &gorm.Config{ Logger: ... } 配置GORM的行为.这里只配置了logger字段，将其变成一个能打印sql操作的日志器，然后将gorm.Config这个指针传给GORM
-		Logger: logger.Default.LogMode(logger.Info), //logger.Default GORM 自带的默认日志器   .LogMode(logger.Info) 设置日志级别为 Info（打印所有 SQL）
+		Logger: logger.Default.LogMode(logger.Warn), //压测期间避免为每条 SQL 同步输出日志，影响观测和请求性能
 	})
 	if err != nil {
 		return fmt.Errorf("连接数据库失败:%w", err) //如果报错就会直接退出函数
