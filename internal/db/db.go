@@ -1,8 +1,10 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"log" //在程序启动时加载日志，避免出现配置未加载问题
+	"time"
 
 	"gorm.io/driver/mysql" //告诉GORM翻译的是mysql的语言
 	"gorm.io/gorm"         //将结构体翻译成数据库表，并将db.Create(&user)这样的操作翻译成数据库语言
@@ -39,8 +41,25 @@ func InitDB() error {
 	if err != nil {
 		return fmt.Errorf("连接数据库失败:%w", err) //如果报错就会直接退出函数
 	}
+	sqlDB, err := DB.DB()
+	if err != nil {
+		return fmt.Errorf("获取数据库连接池失败:%w", err)
+	}
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 	log.Println("MySQL连接成功")
 	return nil
+}
+
+// Status 返回数据库连接池当前状态。
+func Status() (sql.DBStats, error) {
+	sqlDB, err := DB.DB()
+	if err != nil {
+		return sql.DBStats{}, err
+	}
+	return sqlDB.Stats(), nil
 }
 
 // AutoMigrate 自动创建/更新表（后面加了新 Model 就往里加）
