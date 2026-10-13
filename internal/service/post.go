@@ -15,6 +15,8 @@ import (
 
 type PostService struct{}
 
+var ErrPostNotFound = errors.New("帖子不存在")
+
 // CreatePost 发布帖子
 func (s *PostService) CreatePost(userID uint, title, content string) (*model.Post, error) {
 	post := model.Post{
@@ -29,23 +31,34 @@ func (s *PostService) CreatePost(userID uint, title, content string) (*model.Pos
 }
 
 // GetPostList 获取帖子列表（分页）
-func (s *PostService) GetPostList(page, size int) ([]model.Post, int64, error) {
-	var posts []model.Post
+func (s *PostService) GetPostList(page, size int, keyword string) ([]model.Post, int64, error) {
+	posts := make([]model.Post, 0)
 	var total int64
 
+	query := db.DB.Model(&model.Post{})
+
+	if keyword != "" {
+		pattern := "%" + keyword + "%"
+		query = query.Where(
+			"(title LIKE ? OR content LIKE ?)",
+			pattern,
+			pattern,
+		)
+	}
+
 	//计算总数
-	if err := db.DB.Model(&model.Post{}).Count(&total).Error; err != nil { //统计 posts 表里的总记录数，并存到 total 变量里，Model是指定查询的表，Count(&total)执行 SELECT COUNT(*) FROM posts，把结果写入 total
-		return nil, 0, nil
+	if err := query.Count(&total).Error; err != nil { //统计 posts 表里的总记录数，并存到 total 变量里，Model是指定查询的表，Count(&total)执行 SELECT COUNT(*) FROM posts，把结果写入 total
+		return nil, 0, err
 	}
 
 	//分页查询,按创建时间倒序，预加载用户信息
 	offset := (page - 1) * size
-	if err := db.DB.
-		Preload("User").                 //预加载关联：把每个帖子的 User 信息也查出来，存到 posts[i].User 里
-		Order("created_at DESC").        //按 created_at 字段降序排列（越新的帖子排越前）
-		Offset(offset).                  //跳过前 offset 条数据
-		Limit(size).                     //只取 size 条数据
-		Find(&posts).Error; err != nil { //执行查询，结果存入 posts 切片
+	if err := query.
+		Preload("User").                   //预加载关联：把每个帖子的 User 信息也查出来，存到 posts[i].User 里
+		Order("created_at DESC, id DESC"). //按 created_at 字段降序排列（越新的帖子排越前）
+		Offset(offset).                    //跳过前 offset 条数据
+		Limit(size).                       //只取 size 条数据
+		Find(&posts).Error; err != nil {   //执行查询，结果存入 posts 切片
 		return nil, 0, err
 	}
 	return posts, total, nil
@@ -56,7 +69,7 @@ func (s *PostService) GetPostByID(id uint) (*model.Post, error) {
 	var post model.Post
 	if err := db.DB.Preload("User").First(&post, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("帖子不存在")
+			return nil, ErrPostNotFound
 		}
 		return nil, err
 	}

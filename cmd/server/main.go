@@ -26,12 +26,6 @@ func main() {
 	defer f.Close()
 	log.SetOutput(io.MultiWriter(os.Stdout, f)) //把日志打印到终端和日志文件
 	config.LoadConfig()                         //加载配置
-	poolLogFile, err := os.OpenFile("db-pool.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer poolLogFile.Close()
-	poolLogger := log.New(io.MultiWriter(os.Stdout, poolLogFile), "[db-pool] ", log.LstdFlags)
 
 	//连接数据库
 	if err := db.InitDB(); err != nil {
@@ -40,31 +34,6 @@ func main() {
 	if err := db.AutoMigrate(); err != nil { //AutoMigrate()是GORM自带对的一个函数，自动把参数里面的指针所指结构体建成数据库对应的表（只增不删），由于数据库连接对象*gorm.DB是在db包里面定义的，所以用db包来调用此函数
 		log.Fatal("自动迁移失败", err)
 	}
-
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		printStatus := func() {
-			stats, err := db.Status()
-			if err != nil {
-				poolLogger.Println("查询连接池状态失败:", err)
-				return
-			}
-			poolLogger.Printf("open=%d in_use=%d idle=%d wait_count=%d wait_duration=%s idle_closed=%d lifetime_closed=%d",
-				stats.OpenConnections,
-				stats.InUse,
-				stats.Idle,
-				stats.WaitCount,
-				stats.WaitDuration,
-				stats.MaxIdleClosed,
-				stats.MaxLifetimeClosed,
-			)
-		}
-		printStatus()
-		for range ticker.C {
-			printStatus()
-		}
-	}()
 
 	//连接redis
 	if err := redis.InitRedis(); err != nil {

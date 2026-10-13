@@ -7,6 +7,9 @@ import (
 	"strconv"
 
 	"context"
+	"errors"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -49,6 +52,7 @@ func (pc *PostController) CreatePost(c *gin.Context) {
 
 // GetPostList 获取帖子列表（分页）
 func (pc *PostController) GetPostList(c *gin.Context) {
+	keyword := strings.TrimSpace(c.Query("keyword"))
 	//获取分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")) //获取URL里面page的值，没有就用默认值1
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
@@ -60,7 +64,7 @@ func (pc *PostController) GetPostList(c *gin.Context) {
 		size = 10
 	}
 
-	posts, total, err := pc.postService.GetPostList(page, size)
+	posts, total, err := pc.postService.GetPostList(page, size, keyword)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取帖子列表失败"})
 		return
@@ -76,17 +80,30 @@ func (pc *PostController) GetPostList(c *gin.Context) {
 
 // GetPostDetail 获取帖子详情
 func (pc *PostController) GetPostDetail(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子"})
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "帖子ID必须是有效的正整数",
+		})
 		return
 	}
 
 	post, err := pc.postService.GetPostByID(uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		if errors.Is(err, service.ErrPostNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "帖子不存在",
+			})
+			return
+		}
+
+		log.Printf("查询帖子失败，post_id=%d，错误：%v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "查询帖子失败",
+		})
 		return
-	}
+	} //把帖子不存在和查询失败的错误分开
+
 	c.JSON(http.StatusOK, gin.H{
 		"data": post,
 	})
