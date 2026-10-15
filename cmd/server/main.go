@@ -41,6 +41,7 @@ func main() {
 	}
 
 	r := gin.Default()
+	agentController := controller.AgentController{}
 	userController := controller.UserController{}
 	postController := controller.PostController{}
 	commentController := controller.CommentController{}
@@ -72,6 +73,7 @@ func main() {
 		authorized.GET("/feed", feedController.GetFeed)
 		authorized.GET("/admin/refresh-hot", hotController.RefreshHot)
 		authorized.GET("/posts/:post_id/ai-summary", postController.GetAISummary) //用ai生成帖子摘要的接口要登陆是因为消耗token要花钱，避免被人随意嚯嚯
+		authorized.POST("/agent/run", agentController.Run)
 		authorized.GET("/test", func(c *gin.Context) {
 			userID, _ := c.Get("user_id")
 			c.JSON(http.StatusOK, gin.H{
