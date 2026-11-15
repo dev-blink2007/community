@@ -55,7 +55,7 @@ func main() {
 	r.GET("/api/posts", postController.GetPostList)
 	r.GET("/api/post/:id", postController.GetPostDetail)
 	r.GET("/api/posts/:post_id/comments", commentController.GetComments)
-	r.GET("/api/posts/:post_id/like-status", likeController.GetLikeStatus)
+	r.GET("/api/posts/:post_id/like-status", middleware.OptionalAuthMiddleware(), likeController.GetLikeStatus)
 	r.GET("/api/posts/:post_id/like-count", likeController.GetLikeCount)
 	r.GET("/api/posts/hot", hotController.GetHot)
 
