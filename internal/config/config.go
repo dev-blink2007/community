@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os" //读取系统环境里的环境变量.也就是只能读已经存在的环境变量
+	"strings"
 
 	//"stronv"//对字符串进行操作
 
@@ -24,10 +26,14 @@ type AppConfig struct {
 
 var Cfg *AppConfig //指向AppConfig结构体的指针
 
-func LoadConfig() {
+func LoadConfig() error {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("未找到.env文件,将使用系统环境变量") //开发阶段暂时将报错日志打印到终端，等到最后项目快结束打磨的时候再加到日志文件中去
+	}
+	secret, err := mustgetEnv("JWT_SECRET")
+	if err != nil {
+		return err
 	}
 	Cfg = &AppConfig{
 		AppPort:        getEnv("APP_PORT", "8080"),
@@ -38,13 +44,27 @@ func LoadConfig() {
 		DBName:         getEnv("DB_NAME", "community"),
 		RedisAddr:      getEnv("REDIS_ADDR", "127.0.0.1:6379"),
 		RedisPassword:  getEnv("REDIS_PASSWORD", ""),
-		JWTSecret:      getEnv("JWT_SECRET", "default-secret"),
+		JWTSecret:      secret,
 		DeepSeekAPIKey: getEnv("DEEPSEEK_API_KEY", ""),
 	}
+	return nil
 }
 func getEnv(key, defaultVaiue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return defaultVaiue
+}
+func mustgetEnv(key string) (string, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return "", fmt.Errorf("配置%s未设置", key)
+	}
+	if strings.TrimSpace(value) == "" {
+		return "", fmt.Errorf("配置%s不应该为空", key)
+	}
+	if key == "JWT_SECRET" && strings.TrimSpace(value) == "default-secret" {
+		return "", fmt.Errorf("配置%s不应该为默认值", key)
+	}
+	return value, nil
 }

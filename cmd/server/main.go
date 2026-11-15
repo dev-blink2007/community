@@ -25,8 +25,9 @@ func main() {
 	}
 	defer f.Close()
 	log.SetOutput(io.MultiWriter(os.Stdout, f)) //把日志打印到终端和日志文件
-	config.LoadConfig()                         //加载配置
-
+	if err := config.LoadConfig(); err != nil {
+		log.Fatal("配置加载错误:", err)
+	}
 	//连接数据库
 	if err := db.InitDB(); err != nil {
 		log.Fatal("数据库初始化失败:", err)
@@ -71,7 +72,6 @@ func main() {
 		authorized.GET("/users/:user_id/followers", followController.GetFollowers)
 		authorized.POST("/users/:user_id/follow", followController.ToggleFollow)
 		authorized.GET("/feed", feedController.GetFeed)
-		authorized.GET("/admin/refresh-hot", hotController.RefreshHot)
 		authorized.GET("/posts/:post_id/ai-summary", postController.GetAISummary) //用ai生成帖子摘要的接口要登陆是因为消耗token要花钱，避免被人随意嚯嚯
 		authorized.POST("/agent/run", agentController.Run)
 		authorized.GET("/test", func(c *gin.Context) {

@@ -2,6 +2,8 @@ package utils
 
 import (
 	"community/internal/config"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -28,17 +30,28 @@ func GenerateToken(userID uint) (string, error) {
 
 // 解析jwt
 func ParseToken(tokenstring string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenstring, &Claims{}, func(token *jwt.Token) (interface{}, error) { //&Claims{}这一步有两个意思，创建Claims{}的实例，再取他（实例）的地址
-		//jwt.ParseWithClaims是解析函数，返回 jwt.Token 结构体，判断解析出来的信息能否填入Claims{}里，能就填入，有三个参数tokenString string，要解析的JWT字符串；claims Claims，存放解析结果的结构体；keyFunc Keyfunc，回调函数，返回验证签名的密钥，且该函数的参数，返回值类型是被定义好的
-		//该函数第二个参数是一个接口类型，实现Valid（）的接口类型，jwt.RegisteredClaims写好（实现）了这个方法，而Claims{}继承了这个方法,所以这个结构体的指针类型可以视作该接口类型
-		return []byte(config.Cfg.JWTSecret), nil
-	})
+	token, err := jwt.ParseWithClaims(tokenstring, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		secret := []byte(config.Cfg.JWTSecret)
+		if config.Cfg.JWTSecret == "default-secret" {
+			return nil, fmt.Errorf("密钥不应该使用默认值")
+		}
+		return secret, nil
+	},
+		jwt.WithValidMethods([]string{"HS256"}),
+		jwt.WithExpirationRequired(),
+	)
+	//该函数：1.把 JWT 字符串切成三段：header、payload、signature，分别做 base64 解码。2.把 payload 的 JSON 填进 &Claims{}。这就是为什么第二个参数要传一个指针：填数据需要能改到那个结构体。3.调用 keyFunc 拿到密钥，验证签名。签名不对ParseWithClaims就返回 error。4.返回一个 *jwt.Token，里面装着解析后的 header、claims、签名等信息。
+	//这个keyfunc函数作用就是返回验证签名需要的密钥，供ParseWithClaims作验证使用，当有多个密钥的时候这个函数还可以通过传入的token里面的header字段内容选择密钥
 	if err != nil { //如果密钥不对 jwt.ParseWithClaims这个函数就会报错
 		return nil, err
 	}
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid { //token.Claims.(*Claims)是类型断言，语法格式为：接口变量.(具体类型)，将接口类型转换为具体类型，检验token.Claims这个接口是否为*Claims类型，是则将数据填入结构体，且ok为true，token.Claims是token里面的一个字段，它是一个实现了valid的接口。你传进去的 &Claims{} 会被填满后赋值给这个接口。
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid { //token.Claims.(*Claims)是类型断言，语法格式为：接口变量.(具体类型)，将接口类型转换为具体类型，检验token.Claims这个接口是否为*Claims类型，是则将数据填入结构体，且ok为true，token.Claims是token里面的一个字段，它是一个实现了valid的接口。你传进去的 &Claims{} 会被填满后赋值给这个接口。
 		//valid是判断这个token是否还有效的方法
-		return claims, nil
+		return nil, errors.New("invalid token claims")
 	}
-	return nil, err
+	if claims.UserID <= 0 {
+		return nil, errors.New("token 中的用户 ID 无效")
+	}
+	return claims, nil
 }
