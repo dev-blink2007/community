@@ -66,6 +66,13 @@ func TestParsePagination(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "页码为空",
+			query: url.Values{
+				"page": []string{""},
+			},
+			wantErr: true,
+		},
 	}
 
 	// 第三步：逐条取出用例，执行相同的检查逻辑。
@@ -100,6 +107,48 @@ func TestParsePagination(t *testing.T) {
 					tt.wantOffset,
 					offset,
 				)
+			}
+		})
+	}
+}
+
+func TestParsePositiveID(t *testing.T) {
+	tests := []struct {
+		name    string
+		param   string
+		wantid  int
+		wantErr bool
+	}{
+		{
+			name:    "超出int范围",
+			param:   "4294967296",
+			wantErr: true,
+		},
+		{
+			name:    "不是正整数",
+			param:   "abc",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, err := ParsePositiveID(tt.param)
+
+			if tt.wantErr {
+				// 这个用例应该失败。
+				if err == nil {
+					t.Fatal("预期返回错误，实际没有错误")
+				}
+				return
+			}
+
+			// 这个用例应该成功。
+			if err != nil {
+				t.Fatalf("预期成功，实际错误：%v", err)
+			}
+
+			if id != uint(tt.wantid) {
+				t.Errorf("id：期望 %d，实际 %d", tt.wantid, id)
 			}
 		})
 	}

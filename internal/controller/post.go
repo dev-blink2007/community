@@ -4,7 +4,6 @@ import (
 	"community/internal/service"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"context"
 	"errors"
@@ -54,14 +53,10 @@ func (pc *PostController) CreatePost(c *gin.Context) {
 func (pc *PostController) GetPostList(c *gin.Context) {
 	keyword := strings.TrimSpace(c.Query("keyword"))
 	//获取分页参数
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")) //获取URL里面page的值，没有就用默认值1
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
-
-	if page < 1 {
-		page = 1
-	}
-	if size < 1 {
-		size = 10
+	page, size, _, err := ParsePagination(c.Request.URL.Query())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	posts, total, err := pc.postService.GetPostList(page, size, keyword)
@@ -80,15 +75,13 @@ func (pc *PostController) GetPostList(c *gin.Context) {
 
 // GetPostDetail 获取帖子详情
 func (pc *PostController) GetPostDetail(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "帖子ID必须是有效的正整数",
-		})
+	id, err := ParsePositiveID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	post, err := pc.postService.GetPostByID(uint(id))
+	post, err := pc.postService.GetPostByID(id)
 	if err != nil {
 		if errors.Is(err, service.ErrPostNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -112,13 +105,12 @@ func (pc *PostController) GetPostDetail(c *gin.Context) {
 // GetAISummary AI生成帖子摘要
 func (pc *PostController) GetAISummary(c *gin.Context) {
 	//获取帖子ID
-	idstr := c.Param("post_id")
-	id, err := strconv.Atoi(idstr)
+	id, err := ParsePositiveID(c.Param("post_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	post, err := pc.postService.GetPostByIDWithLock(c.Request.Context(), uint(id))
+	post, err := pc.postService.GetPostByIDWithLock(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return

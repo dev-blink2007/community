@@ -3,7 +3,6 @@ package controller
 import (
 	"community/internal/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,13 +43,13 @@ func (cc *CommentController) CreateComment(c *gin.Context) {
 
 // GetComments 获取帖子的评论列表
 func (cc *CommentController) GetComments(c *gin.Context) {
-	postID, err := strconv.Atoi(c.Param("post_id"))
+	postID, err := ParsePositiveID(c.Param("post_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	comments, err := cc.commentService.GetCommentsByPostID(uint(postID))
+	comments, err := cc.commentService.GetCommentsByPostID(postID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取评论列表失败"})
 		return

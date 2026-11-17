@@ -6,15 +6,15 @@ import (
 	"strconv"
 )
 
-func ParsePositiveID(param string) (int, error) {
-	ans, err := strconv.Atoi(param)
+func ParsePositiveID(param string) (uint, error) {
+	ans, err := strconv.ParseUint(param, 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("地址参数不合法:%s", err)
 	}
 	if ans <= 0 {
 		return 0, fmt.Errorf("地址参数应该为正整数")
 	}
-	return ans, nil
+	return uint(ans), nil
 }
 
 func ParsePagination(query url.Values) (page, size, offset int, err error) {

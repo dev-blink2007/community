@@ -3,7 +3,6 @@ package controller
 import (
 	"community/internal/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,13 +20,13 @@ func (lc *LikeController) ToggleLike(c *gin.Context) {
 	}
 	userID := userIDval.(uint)
 
-	postID, err := strconv.Atoi(c.Param("post_id"))
+	postID, err := ParsePositiveID(c.Param("post_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	liked, err := lc.likeService.ToggleLike(c.Request.Context(), userID, uint(postID))
+	liked, err := lc.likeService.ToggleLike(c.Request.Context(), userID, postID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子ID"})
 		return
@@ -46,6 +45,11 @@ func (lc *LikeController) ToggleLike(c *gin.Context) {
 
 // GetLikeStatus 获取点赞状态
 func (lc *LikeController) GetLikeStatus(c *gin.Context) {
+	postID, err := ParsePositiveID(c.Param("post_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	//不登录则默认未点赞
 	userIDVal, exists := c.Get("user_id")
 	if !exists {
@@ -53,13 +57,8 @@ func (lc *LikeController) GetLikeStatus(c *gin.Context) {
 		return
 	}
 	userID := userIDVal.(uint)
-	postID, err := strconv.Atoi(c.Param("post_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子ID"})
-		return
-	}
 
-	liked, err := lc.likeService.GetLikeStatus(userID, uint(postID))
+	liked, err := lc.likeService.GetLikeStatus(userID, postID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return
@@ -69,13 +68,13 @@ func (lc *LikeController) GetLikeStatus(c *gin.Context) {
 
 // GetLikeCount 获取点赞总数
 func (lc *LikeController) GetLikeCount(c *gin.Context) {
-	postID, err := strconv.Atoi(c.Param("post_id"))
+	postID, err := ParsePositiveID(c.Param("post_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的帖子ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	count, err := lc.likeService.GetLikeCountWithCache(c.Request.Context(), uint(postID))
+	count, err := lc.likeService.GetLikeCountWithCache(c.Request.Context(), postID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return

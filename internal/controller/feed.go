@@ -3,7 +3,6 @@ package controller
 import (
 	"community/internal/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,15 +19,12 @@ func (fc *FeedController) GetFeed(c *gin.Context) {
 	}
 	userID := userIDVal.(uint)
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
+	page, size, _, err := ParsePagination(c.Request.URL.Query())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-	if page < 1 {
-		page = 1
-	}
-	if size < 1 || size > 50 {
-		size = 10
-	}
 	posts, total, err := fc.feedService.GetFeedWithCache(c.Request.Context(), userID, page, size)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取Feed失败"})

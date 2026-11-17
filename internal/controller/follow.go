@@ -3,7 +3,6 @@ package controller
 import (
 	"community/internal/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,13 +20,13 @@ func (fc *FollowController) ToggleFollow(c *gin.Context) {
 	}
 	userID := userIDVal.(uint)
 
-	targetID, err := strconv.Atoi(c.Param("user_id"))
+	targetID, err := ParsePositiveID(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	followed, err := fc.followService.ToggleFollow(userID, uint(targetID))
+	followed, err := fc.followService.ToggleFollow(userID, targetID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -44,13 +43,13 @@ func (fc *FollowController) ToggleFollow(c *gin.Context) {
 }
 
 func (fc *FollowController) GetFollowings(c *gin.Context) {
-	targetID, err := strconv.Atoi(c.Param("user_id"))
+	targetID, err := ParsePositiveID(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	users, err := fc.followService.GetFollowings(uint(targetID))
+	users, err := fc.followService.GetFollowings(targetID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return
@@ -61,12 +60,12 @@ func (fc *FollowController) GetFollowings(c *gin.Context) {
 }
 
 func (fc *FollowController) GetFollowers(c *gin.Context) {
-	targetID, err := strconv.Atoi(c.Param("user_id"))
+	targetID, err := ParsePositiveID(c.Param("user_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	users, err := fc.followService.GetFollowers(uint(targetID))
+	users, err := fc.followService.GetFollowers(targetID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return
