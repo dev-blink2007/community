@@ -26,7 +26,7 @@ func ParsePagination(query url.Values) (page, size, offset int, err error) {
 			return 0, 0, 0, fmt.Errorf("size参数不合法:%s", err)
 		}
 		if size <= 0 || size > 50 {
-			return 0, 0, 0, fmt.Errorf("size参数应为正整数且小于50")
+			return 0, 0, 0, fmt.Errorf("size 参数必须在 1～50 之间")
 		}
 	}
 	if !query.Has("page") {
