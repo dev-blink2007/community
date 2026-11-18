@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,15 +28,29 @@ func (pc *PostController) CreatePost(c *gin.Context) {
 	userID := userIDVal.(uint) //把接口类型转换成uint
 
 	var req struct {
-		Title   string `json:"title" binding:"required,min=1,max=200"`
-		Content string `json:"content" binding:"required,min=1"`
+		Title   string `json:"title" binding:"required"`
+		Content string `json:"content" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误" + err.Error()})
+	var sizeErr *http.MaxBytesError
+	if err := BindJSONLimited(c, &req); err != nil {
+		if errors.As(err, &sizeErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "请求体长度超过限制:" + err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数不合格:" + err.Error()})
+	}
+	title, err := ValidateText(req.Title, 200, true)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "标题:" + err.Error()})
+		return
+	}
+	content, err := ValidateText(req.Content, 20000, true)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "正文:" + err.Error()})
 		return
 	}
 
-	post, err := pc.postService.CreatePost(userID, req.Title, req.Content)
+	post, err := pc.postService.CreatePost(userID, title, content)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -51,7 +64,11 @@ func (pc *PostController) CreatePost(c *gin.Context) {
 
 // GetPostList 获取帖子列表（分页）
 func (pc *PostController) GetPostList(c *gin.Context) {
-	keyword := strings.TrimSpace(c.Query("keyword"))
+	keyword, err := ValidateText(c.Query("keyword"), 200, false)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "关键词:" + err.Error()})
+		return
+	}
 	//获取分页参数
 	page, size, _, err := ParsePagination(c.Request.URL.Query())
 	if err != nil {

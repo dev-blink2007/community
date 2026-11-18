@@ -37,11 +37,11 @@ func ValidateText(content string, limitsize int, required bool) (string, error) 
 func ValidatePassword(password string) (string, error) {
 	password = strings.TrimSpace(password)
 	if utf8.RuneCountInString(password) < 6 {
-		return "", fmt.Errorf("密码应该大于6个字符")
+		return "", fmt.Errorf("密码至少需要6个字符")
 	}
 
 	if len(password) > 72 {
-		return "", fmt.Errorf("密码应该小于72个字符")
+		return "", fmt.Errorf("密码最多允许72个字符")
 	}
 	return password, nil
 }

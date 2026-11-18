@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,21 +16,21 @@ type AgentController struct {
 
 func (ac *AgentController) Run(c *gin.Context) {
 	var req struct {
-		Question string `json:"question" binding:"required,max=2000"`
+		Question string `json:"question" binding:"required"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "question 必须是长度不超过2000的非空字符串",
-		})
-		return
+	var sizeErr *http.MaxBytesError
+	if err := BindJSONLimited(c, &req); err != nil {
+		if errors.As(err, &sizeErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "请求体长度超过限制:" + err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数不合格:" + err.Error()})
 	}
 
-	question := strings.TrimSpace(req.Question)
-	if question == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "问题不能为空或只有空白字符",
-		})
+	question, err := ValidateText(req.Question, 2000, true)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "question:" + err.Error()})
 		return
 	}
 

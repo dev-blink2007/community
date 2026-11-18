@@ -2,6 +2,7 @@ package controller
 
 import (
 	"community/internal/service"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -24,12 +25,20 @@ func (cc *CommentController) CreateComment(c *gin.Context) {
 		PostID  uint   `json:"post_id" binding:"required"`
 		Content string `json:"content" binding:"required,min=1"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
+	var sizeErr *http.MaxBytesError
+	if err := BindJSONLimited(c, &req); err != nil {
+		if errors.As(err, &sizeErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "请求体长度超过限制:" + err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数不合格:" + err.Error()})
+	}
+	content, err := ValidateText(req.Content, 2000, true)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "评论:" + err.Error()})
 		return
 	}
-
-	comment, err := cc.commentService.CreateComment(userID, req.PostID, req.Content)
+	comment, err := cc.commentService.CreateComment(userID, req.PostID, content)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
