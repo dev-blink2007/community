@@ -4,6 +4,7 @@ import (
 	"community/internal/service"
 	"community/internal/utils"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -35,8 +36,14 @@ func (uc *UserController) Register(c *gin.Context) {
 
 	user, err := uc.userService.Register(req.Username, password)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+		if errors.Is(err, service.ErrUsernameConflict) { //uc.userService是一个实例，只能访问他对应的方法，而ErrUsernameConflict是包级变量，只能用包名访问
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		} else {
+			log.Printf("注册失败：%v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器内部错误"})
+			return
+		}
 	}
 
 	// 生成JWT
@@ -74,8 +81,14 @@ func (uc *UserController) Login(c *gin.Context) {
 	}
 	user, err := uc.userService.Login(req.Username, password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		} else {
+			log.Printf("登录失败：%v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "服务器内部错误"})
+			return
+		}
 	}
 
 	//生成新token

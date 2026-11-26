@@ -98,7 +98,7 @@ func (pc *PostController) GetPostDetail(c *gin.Context) {
 		return
 	}
 
-	post, err := pc.postService.GetPostByID(id)
+	post, err := pc.postService.GetPostByIDWithLock(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrPostNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
